@@ -1,29 +1,68 @@
 #!/usr/bin/env python2.7
 from __future__ import print_function
-
-# Read MB datagrams from a simrad em122.  Starting with Healy 2010 data.
+# Requires python 2.6 or 2.7
+# Read MB datagrams from a simrad multibeam.  Starting with 2010 Healy em122 data.
 
 import mmap   # load the file into memory directly so it looks like a big array
-import os
-import struct
-import operator
+import struct # For decoding the fields within a datagram
+import os, sys
+import datetime
 
 class SimradError(Exception):
     pass
 
+class Clock(object):
+    def __init__(self,data,offset=0):
+        self.model = struct.unpack('H',data[offset+6:offset+8])[0]
+
+        date,time = struct.unpack('II',data[offset+8:offset+16])
+        year = date / 10000
+        month = (date % 10000) / 100
+        day = date % 100
+        hour = time / 360000
+        millisec = time % 100
+        microsec = millisec * 1000
+        remainder = (time % 360000) / 100
+        minutes = remainder / 60
+        seconds = remainder % 60
+        self.timestamp = datetime.datetime(year, month, day, hour, minutes, seconds, microsec)
+
+    def __str__(self): return self.__unicode__()
+    def __unicode__(self):
+        #print (self.__dict__)
+        return 'Clock: {timestamp}, {model}'.format(**self.__dict__)
+
 datagram_type_lut = {
-    'D': ('depth',),
-    'X': ('XYZ',),
-    'K': ('Central beams echogram',),
-    'F': ('Raw range and beam angle datagrams (old)',),
-    'f': ('Raw range and beam angle datagrams (new)'),
-    'N': ('Raw range and beam angle 78 datagram'),
-    'S': ('Seabed image datagram'),
-    'Y': ('Seabed image data 89 datagram'),
-    'k': ('Water column datagram'),
-    'I': ('Installation parameters',),
-    'i': ('installation parameters',), # same as I and r
-    'r': ('remote information',), # same as I and i
+    'D': ('depth',None),
+    'X': ('XYZ',None),
+    'K': ('Central beams echogram',None),
+    'F': ('Raw range and beam angles (old)',None),
+    'f': ('Raw range and beam angles (new)',None),
+    'N': ('Raw range and beam angle 78 ',None),
+    'S': ('Seabed image ',None),
+    'Y': ('Seabed image data 89 ',None),
+    'k': ('Water column ',None),
+    'I': ('Installation parameters',None),
+    'i': ('installation parameters',None), # same as I and r
+    'r': ('remote information',None), # same as I and i
+    'R': ('Runtime parameters',None),
+    'U': ('Sound speed profile ',None),
+    'A': ('Attitude ',None),
+    'n': ('Network attitude velocity  110',None),
+    'C': ('Clock',Clock),
+    'h': ('Depth (pressure) or height ',None),
+    'H': ('Headings',None),
+    'P': ('Positions',None),
+    'E': ('Single beam echo sounder depth ',None),
+    'T': ('Tide',None),
+    'G': ('Surface sound speed',None),
+    'U': ('Sound speed profile',None),
+    'W': ('Kongsberg Maritime SSP output',None),
+    'J': ('Mechanical transducer tilts',None),
+    '3': ('Extra Parameters',None),
+    '0': ('PU Id outputs',None),
+    '1': ('PU Status output',None),
+    'B': ('PU BIST result',None), # Built in self test
     }
 
 class Simrad(object):
@@ -43,26 +82,26 @@ class Datagram(object):
         self.data = data
         self.offset = offset
         self.length = struct.unpack('I',data[offset:offset+4])[0]
-        print ('length:',self.length)
-        print ('STX:',ord(data[offset+4]))
+        #print ('length:',self.length)
+        #print ('STX:',ord(data[offset+4]))
         assert(2== ord(data[offset+4])) #struct.unpack('B',data[offset+4])
         self.dgram_type = data[offset+5]
-        print ('dgram_type:',self.dgram_type,datagram_type_lut[self.dgram_type][0])
+        #print ('dgram_type:',self.dgram_type,datagram_type_lut[self.dgram_type][0])
 
-        for i in range(self.length-5,self.length+5):
-            print (self.length,i,':',data[offset+i],ord(data[offset+i]))
+        #for i in range(self.length-5,self.length+5):
+        #    print (self.length,i,':',data[offset+i],ord(data[offset+i]))
 
         assert(3 == ord(data[offset+self.length+1])) # End marker
         self.checksum_reported = struct.unpack('H',data[offset+self.length+2:offset+self.length+4])[0]
         self.checksum_actual = sum(map(ord,data[offset+5:offset+self.length]))
-        print ('checksum:',self.checksum_actual,self.checksum_reported)
+        #print ('checksum:',self.checksum_actual,self.checksum_reported)
 
     def __str__(self): return self.__unicode__()
     def __unicode__(self):
         return 'dg: {length} {dg_type}, {dg_name}'.format(
             length = self.length,
-            dg_type = dg.dgram_type,
-            dg_name = datagram_type_lut[dg.dgram_type],
+            dg_type = self.dgram_type,
+            dg_name = datagram_type_lut[self.dgram_type][0],
             )
 
     def checksum_valid(self):
@@ -71,6 +110,12 @@ class Datagram(object):
     def next(self):
         'return the offset value for the next datagram'
         return self.offset + self.length + 4
+
+    def get_object(self):
+        'Try to return a class instance for the datagram or None if not yet written'
+        cls = datagram_type_lut[self.dgram_type][1]
+        if cls is None: return None # Means not yet decoded
+        return cls(self.data, self.offset)
 
 class SimradIterator(object):
     def __init__(self,simrad):
@@ -85,25 +130,15 @@ class SimradIterator(object):
         dg = Datagram(self.data,self.offset)
         self.offset = dg.next()
         return dg
-    
-# Not used... just me playing
-def SimradGenerator(simrad):
-    'Iterate across the datagrams'
-    data = simrad.data
-    offset = 0
-    size = simrad.size
-    while offset<simrad.size:
-        dg = Datagram(data,offset)
-        offset = dg.next()
-        yield dg
 
+def main():
+    simrad = Simrad('0034_20100604_005123_Healy.all')
+    for count,dg in enumerate(simrad):
+        #print (count, dg.length, dg.dgram_type, )
+        obj = dg.get_object()
+        if obj is None: continue
+        print (count, str(dg), str(obj) )
 
 
 if __name__ == '__main__':
-    simrad = Simrad('0034_20100604_005123_Healy.all')
-    #dg = Datagram(simrad.data,0)
-    #iter = simrad.__iter__()
-    #print 
-    for count,dg in enumerate(simrad):
-        #print (count, dg.length, dg.dgram_type, datagram_type_lut[dg.dgram_type])
-        print (count, str(dg))
+    main()
