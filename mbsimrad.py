@@ -48,6 +48,23 @@ class Clock(object):
         #print (self.__dict__)
         return 'Clock: {timestamp} -- {model} {counter} {serial} {timestamp_ext} {pps}'.format(**self.__dict__)
 
+class Position(object):
+    def __init__(self,data,offset=0):
+        self.model = struct.unpack('H',data[offset+6:offset+8])[0]
+        date, time, self.counter, self.serial = struct.unpack('IIHH',data[offset+8:offset+20])
+        lat_raw, lon_raw = struct.unpack('ii',data[offset+20:offset+28])
+        self.lat = lat_raw / 2e7
+        self.lon = lon_raw / 1e7
+        self.fix_qual, self.sog_cms, cog, heading, self.pos_descriptor, self.byte_count = struct.unpack('HHHHBB',data[offset+28:offset+38])
+        self.cog = cog * 1e-2
+        self.heading = heading * 1e-2
+        self.input_str = data[offset+38:offset+38+self.byte_count]
+        
+        #print ('Pos:',self.__dict__)
+    def __str__(self): return self.__unicode__()
+    def __unicode__(self):
+        return 'Pos: xy {lon} {lat} {cog} {heading}'.format(**self.__dict__)
+
 datagram_type_lut = {
     'D': ('depth',None),
     'X': ('XYZ',None),
@@ -68,7 +85,7 @@ datagram_type_lut = {
     'C': ('Clock',Clock),
     'h': ('Depth (pressure) or height ',None),
     'H': ('Headings',None),
-    'P': ('Positions',None),
+    'P': ('Positions',Position),
     'E': ('Single beam echo sounder depth ',None),
     'T': ('Tide',None),
     'G': ('Surface sound speed',None),
@@ -141,20 +158,47 @@ class SimradIterator(object):
     def __iter__(self):
         return self
     def next(self):
-        if self.offset > self.size:
+        if self.offset >= self.size:
             raise StopIteration
         dg = Datagram(self.data,self.offset)
         self.offset = dg.next()
         return dg
 
+def shiptrack_kml(simrad,outfile):
+    o = outfile
+    o.write('''<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:kml="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom">
+<Placemark>
+	<name>line</name>
+	<LineString>
+		<coordinates>\n''')
+    for count,dg in enumerate(simrad):
+        #print (dg)
+        if dg.dgram_type != 'P': continue
+        pos = dg.get_object()
+        #print ('P',str(pos))
+        #print (pos.__dict__)
+        o.write('{lon},{lat}\n'.format(**pos.__dict__))
+
+    o.write('''		</coordinates>
+	</LineString>
+</Placemark>
+</kml>
+''')
+
 def main():
     simrad = Simrad('0034_20100604_005123_Healy.all')
-    for count,dg in enumerate(simrad):
+    if False:
+      for count,dg in enumerate(simrad):
         #print (count, dg.length, dg.dgram_type, )
         obj = dg.get_object()
-        if obj is None: continue
+        #if obj is None: continue
+        #print (count, str(dg))
         print (count, str(dg), str(obj) )
-
+    if True:
+        outfile = open('0034_20100604_005123_Healy.track.kml','w')
+        shiptrack_kml(simrad,outfile)
+    
 
 if __name__ == '__main__':
     main()
