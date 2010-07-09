@@ -11,26 +11,42 @@ import datetime
 class SimradError(Exception):
     pass
 
+def decode_date(date):
+    year = date / 10000
+    month = (date % 10000) / 100
+    day = date % 100
+    return year,month,day
+
+def decode_time(time):
+    hour = time / 360000
+    millisec = time % 100
+    microsec = millisec * 1000
+    remainder = (time % 360000) / 100
+    minute = remainder / 60
+    second = remainder % 60
+    return hour, minute, second, microsec # microsec for python datetime
+
+def date_and_time_to_datetime(date,time):
+    year, month, day = decode_date(date)
+    hour, min, sec, microsec = decode_time(time)
+    return datetime.datetime(year, month, day, hour, min, sec, microsec)
+
 class Clock(object):
     def __init__(self,data,offset=0):
         self.model = struct.unpack('H',data[offset+6:offset+8])[0]
-
-        date,time = struct.unpack('II',data[offset+8:offset+16])
-        year = date / 10000
-        month = (date % 10000) / 100
-        day = date % 100
-        hour = time / 360000
-        millisec = time % 100
-        microsec = millisec * 1000
-        remainder = (time % 360000) / 100
-        minutes = remainder / 60
-        seconds = remainder % 60
-        self.timestamp = datetime.datetime(year, month, day, hour, minutes, seconds, microsec)
+        date,time,self.counter = struct.unpack('IIH',data[offset+8:offset+18])
+        self.timestamp = date_and_time_to_datetime(date,time)
+        #self.serial,date,time,pps = struct.unpack('HIIB',data[offset+18:offset+18+11])
+        # Python struct can't handle non-aligned reads it seems
+        self.serial = struct.unpack('H',data[offset+18:offset+20])[0]
+        date,time,pps = struct.unpack('IIB',data[offset+20:offset+20+9])
+        self.timestamp_ext = date_and_time_to_datetime(date,time)
+        self.pps = bool(pps)
 
     def __str__(self): return self.__unicode__()
     def __unicode__(self):
         #print (self.__dict__)
-        return 'Clock: {timestamp}, {model}'.format(**self.__dict__)
+        return 'Clock: {timestamp} -- {model} {counter} {serial} {timestamp_ext} {pps}'.format(**self.__dict__)
 
 datagram_type_lut = {
     'D': ('depth',None),
