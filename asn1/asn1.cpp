@@ -169,7 +169,7 @@ int main(int argc, char *argv[]) {
     vector<int> id_count(256,0);
 
     int datagram_count = 0;
-    while (0 < file_size - ftell(infile)) {
+    while (true) {//0 < file_size - ftell(infile)) {
         datagram_count ++;
         //cout << endl;
         //cout << "  what? "<< ftell(infile) << " ... " << file_size - ftell(infile) << " feof: " << feof(infile) << endl;
