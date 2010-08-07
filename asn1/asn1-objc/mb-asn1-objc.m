@@ -4,7 +4,7 @@ int main (int argc, const char * argv[]) {
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
 
 	NSDictionary *dgNames = [NSDictionary dictionaryWithObjectsAndKeys:
-							 //@"", [NSNumber numberWithInt:],
+							 //@"", [NSNumber numberWithInt:],
 							 @"PU Id outputs", 	[NSNumber numberWithInt:48],
 							 @"PU Status output", 	[NSNumber numberWithInt:49],
 							 @"Extra Parameters", 	[NSNumber numberWithInt:51],
