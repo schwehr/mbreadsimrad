@@ -7,9 +7,10 @@
      http://www.ldeo.columbia.edu/res/pi/MB-System/formatdoc/
      http://www.ldeo.columbia.edu/res/pi/MB-System/formatdoc/EM_Datagram_Formats_RevM.pdf
          Page 68, 3.3.3 Clock
+     http://rabbit.eng.miami.edu/info/functions/time.html
      man ascii
-     man fread
-     man fseek
+     man open
+     man mmap
      man 
      man 
      man 
@@ -41,12 +42,32 @@ const unsigned int DG_ID_CLOCK = 67;
 #define GET_U1(start,offset) ((unsigned char) *((unsigned char *) (start+offset)))
 
 
+unsigned short compute_checksum(const unsigned char *dg_data, const size_t size);
+
 unsigned short compute_checksum(const unsigned char *dg_data, const size_t size) {
     // Checksum of bytes between the STX and ETX characters
+    assert(dg_data);
+    assert(size < 128000); // Assumption of size
     unsigned short sum = 0;
     for (size_t i=5; i<4+size-3; i++) 
         sum += GET_U1(dg_data,i);
     return sum;
+}
+
+void em_time2tm_struct (const unsigned int date, const unsigned int millisec, struct tm &t);
+
+// Convert a date_raw and millisec_raw to a time.h / struct tm
+void em_time2tm_struct (const unsigned int date,
+                        const unsigned int millisec, 
+                        struct tm &t) {
+    t.tm_year = date / 10000;
+    t.tm_mon = (date % 10000) / 100;
+    t.tm_mday = date % 100;
+
+    t.tm_hour = millisec / 360000;
+    t.tm_min = (millisec % 360000) / 6000 ;
+    t.tm_sec = (millisec % 360000) % 6000 ;
+    t.tm_gmtoff = 0;
 }
 
 class SimradDgClock {
@@ -69,8 +90,12 @@ public:
     unsigned short checksum;
     SimradDgClock(const unsigned char *dg_data);  // pointer starting at size
 
+    // Derived values
+    //struct tm timestamp, timestamp_sensor;
+
     struct tm getTm(); // return struct tm defined in time.h
     void print_raw();
+    void print_time();
     //protected:
 };
 
@@ -88,6 +113,8 @@ SimradDgClock::SimradDgClock(const unsigned char *data) {
     pps_raw = GET_U1(data,28);
     etx = GET_U1(data,29);
     checksum = GET_U2(data,30);
+
+    
 }
 
 void
@@ -105,6 +132,15 @@ SimradDgClock::print_raw() {
          << "\tetx: " << int(etx) << "\n"
          << "\tchecksum: " << checksum << "\n"
          << endl;
+}
+
+void
+SimradDgClock::print_time() {
+    tm time, time_sensor;
+    em_time2tm_struct(date_raw, millisec_raw,time);
+    em_time2tm_struct(date_sensor_raw, millisec_sensor_raw, time_sensor);
+    //cout << asctime(&time) << " ---- ";
+    cout << asctime(&time_sensor) << endl;
 }
 
 
@@ -160,16 +196,18 @@ int main(int argc, char *argv[]) {
                 exit(EXIT_FAILURE);
                 continue;
             }
-            cout << "double check:" << checksum << " " << compute_checksum(dg_data,size) << endl;;
+            //cout << "double check:" << checksum << " " << compute_checksum(dg_data,size) << endl;;
         }
 
         if (DG_ID_CLOCK == id) {
             cout << "clock" << endl;
             SimradDgClock clock(dg_data);
             clock.print_raw();
+            clock.print_time();
+            cerr << "after" << endl;
             //clocks.push_back(SimradDgClock(dg_data));
-            cout << "early" << endl;
-            exit(1);
+            //cout << "early" << endl;
+            //exit(1);
         }
 
         //cout << "datagram: size="<<size<<" id="<<int(id)<<" stx="<<int(stx)<<" etx="<<int(etx)<<" checksum="<<checksum<<  endl;
