@@ -127,7 +127,7 @@ class Datagram(object):
         assert(3 == ord(data[offset+self.length+1])) # End marker
         self.checksum_reported = struct.unpack('H',data[offset+self.length+2:offset+self.length+4])[0]
         self.checksum_actual = sum(map(ord,data[offset+5:offset+self.length]))
-        #print ('checksum:',self.checksum_actual,self.checksum_reported)
+        print ('checksum:',self.checksum_actual,self.checksum_reported)
 
     def __str__(self): return self.__unicode__()
     def __unicode__(self):
