@@ -161,15 +161,20 @@ SimradDg::init(const unsigned char *data, const unsigned int size, bool network)
         assert(false); // Implement this
     }
     assert(STX==GET_U1(data,0));
+    assert(ETX==GET_U1(data,size-3));
+
     em_model = GET_U2(data,2);
 
     const unsigned int date_raw = GET_U4(data,4);
     const unsigned int ms_raw = GET_U4(data,8);
-    
     timestamp = emtime2unixtime(date_raw, ms_raw);
-    cout << "timestamp: " << timestamp << endl;
+    //cout << "timestamp: " << timestamp << endl;
 
-    assert(ETX==GET_U1(data,size-3));
+    ping_counter = GET_U2(data,12);
+    serial_num = GET_U2(data,14);
+
+    // Then comes the packet specific data payload
+
     return((SimradDgEnum)GET_U1(data,1)); // Return the id
 }
 

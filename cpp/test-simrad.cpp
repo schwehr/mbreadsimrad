@@ -13,7 +13,9 @@ int main() {
 
 
     for (SimradDg *dg=sf.next(); dg != 0; dg = sf.next()) {
-        cout << "datagram: " << dg->getName() << endl;
+        if (SIMRAD_DG_CLOCK == dg->getType()) {
+            cout << "datagram: " << dg->getName() << ": " << endl;
+        }
         delete dg;
     };
 

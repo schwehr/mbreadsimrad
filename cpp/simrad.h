@@ -106,6 +106,7 @@ private:
     
     unsigned short em_model, clock_counter;
     double timestamp; // Unix UTC time with millisec decimal places
+    unsigned short ping_counter;
     unsigned short serial_num;
 };
 
