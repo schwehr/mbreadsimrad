@@ -32,3 +32,12 @@ libsimrad.a: simrad.o simrad.h
 	ranlib libsimrad.a
 
 simrad.o: simrad.cpp simrad.h
+
+clean:
+	rm -f *.a test-simrad *.o
+
+BASE:=mbreadsimrad-0.1
+TAR:=${BASE}.tar
+tar:
+	rm 
+	mkdir

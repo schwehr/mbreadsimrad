@@ -56,6 +56,12 @@ time_t emtime2unixtime(const unsigned int date, const unsigned int millisec) {
     return timegm(&t);
 }
 
+double emtime2unixtime_double(const unsigned int date, const unsigned int millisec) {
+    int sec = emtime2unixtime(date, millisec);
+    double sec_decimal = (millisec % 1000) / 1000.;
+    return sec + sec_decimal;
+}
+
 
 //////////////////////////////////////////////////////////////////////
 // SimradFile - Loop over a file
@@ -167,7 +173,7 @@ SimradDg::init(const unsigned char *data, const unsigned int size, bool network)
 
     const unsigned int date_raw = GET_U4(data,4);
     const unsigned int ms_raw = GET_U4(data,8);
-    timestamp = emtime2unixtime(date_raw, ms_raw);
+    timestamp = emtime2unixtime_double(date_raw, ms_raw);
     //cout << "timestamp: " << timestamp << endl;
 
     ping_counter = GET_U2(data,12);
@@ -206,13 +212,18 @@ SimradDgClock::SimradDgClock(const unsigned char *data, const unsigned int size)
     assert(data);
     assert(0<size && size<1000000);
     assert(STX == GET_U1(data,0));
-           
     assert(SIMRAD_DG_CLOCK == GET_U1(data,1)); // validate id
     init(data,size);
+
+    // There is a 2nd timestamp in the clock packet
+    const unsigned int date = GET_U4(data,16);
+    const unsigned int ms   = GET_U4(data,20);
+    timestamp_sensor = emtime2unixtime_double(date, ms);
+    pps = bool(GET_U1(data,24));
+
 }
 
 SimradDgClock::~SimradDgClock() {
-    //assert(false);
     // NOP
 }
 

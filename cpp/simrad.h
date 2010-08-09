@@ -102,8 +102,9 @@ public:
     virtual ~SimradDg();
     virtual SimradDgEnum getType()=0;
     virtual string getName()=0;
-private:
-    
+
+//private:
+   
     unsigned short em_model, clock_counter;
     double timestamp; // Unix UTC time with millisec decimal places
     unsigned short ping_counter;
@@ -129,7 +130,9 @@ public:
     SimradDgEnum getType() {return SIMRAD_DG_CLOCK;};
     string getName() { return string("Clock"); };
 
-    //private:
+//private:
+    double timestamp_sensor;
+    bool pps;
 };
 
 //////////////////////////////////////////////////////////////////////

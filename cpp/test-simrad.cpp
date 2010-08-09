@@ -14,7 +14,8 @@ int main() {
 
     for (SimradDg *dg=sf.next(); dg != 0; dg = sf.next()) {
         if (SIMRAD_DG_CLOCK == dg->getType()) {
-            cout << "datagram: " << dg->getName() << ": " << endl;
+            SimradDgClock *clk = (SimradDgClock *)dg;
+            cout << "datagram: " << clk->getName() << ": " << clk->timestamp << " " << clk->timestamp_sensor << endl;
         }
         delete dg;
     };
