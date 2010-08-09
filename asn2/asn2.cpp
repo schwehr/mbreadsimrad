@@ -41,7 +41,6 @@ const unsigned int DG_ID_CLOCK = 67;
 #define GET_U2(start,offset) ((unsigned short) *((unsigned short *) (start+offset)))
 #define GET_U1(start,offset) ((unsigned char) *((unsigned char *) (start+offset)))
 
-
 unsigned short compute_checksum(const unsigned char *dg_data, const size_t size);
 
 unsigned short compute_checksum(const unsigned char *dg_data, const size_t size) {
@@ -67,29 +66,25 @@ bool emtime2tm_struct (const unsigned int date,
 
     const int tm_hour = millisec / (1000 * 60 * 60);
     const int tm_min = (millisec % (1000 * 60 * 60)) / (1000 * 60) ;
-    //const int tm_sec = (millisec % (1000 * 60 * 60)) % (1000 * 60) / 1000 ;
     const int tm_sec = (millisec % (1000 * 60)) / 1000 ;
 
     // Grrr... Hate going through a string to make this work
     char buf[256];
     snprintf(buf, 256, "%4d-%02d-%02dT%02d:%02d:%02dZ", tm_year, tm_mon, tm_mday,
              tm_hour, tm_min, tm_sec);
-    //cout << "ISO Time string: " << buf << endl;
-    
+   
     if (0 == strptime(buf, "%Y-%m-%dT%H:%M:%SZ", &t)) {
         perror("Unable to parse ISO time");
         return false;
     }
-    t.tm_zone = 0; // "UTC";
+    t.tm_zone = "UTC";
     t.tm_gmtoff = 0;
     return true;
 }
 
-int emtime2unixtime(const unsigned int date,
-                    const unsigned int millisec);
-int emtime2unixtime(const unsigned int date,
+time_t emtime2unixtime(const unsigned int date, const unsigned int millisec);
+time_t emtime2unixtime(const unsigned int date,
                      const unsigned int millisec) {
-
     struct tm t;
     if (! emtime2tm_struct (date, millisec, t)) {
         cerr << "Unable to convert time in emtime2unixtime" << endl;
@@ -134,19 +129,14 @@ public:
 
 double SimradDgClock::unixtime_sensor() {
     int sec_int = emtime2unixtime(date_sensor_raw, millisec_sensor_raw);
-    //double sec_decimal = (millisec_sensor_raw % (1000 * 60 * 60)) % (1000 * 60) % 1000 / 1000.;
     double sec_decimal = (millisec_sensor_raw % 1000) / 1000.;
-    //cout << "sensor: " << sec_int << " " << sec_decimal << "  from " << millisec_sensor_raw << endl;
     return sec_int + sec_decimal;
 }
 
 double SimradDgClock::unixtime() {
     int sec_int = emtime2unixtime(date_raw, millisec_raw);
-    //double sec_decimal = (millisec_raw % (1000 * 60 * 60)) % (1000 * 60) % 1000 / 1000.;
     double sec_decimal = (millisec_raw % 1000) / 1000.;
-    double result = sec_int + sec_decimal;
-    //cout << "internal: " << sec_int << " " << sec_decimal << "  from " << millisec_sensor_raw << " -> " << result << endl;
-    return result;
+    return sec_int + sec_decimal;
 }
 
 int SimradDgClock::unixtime_int_sensor() {
@@ -158,11 +148,11 @@ int SimradDgClock::unixtime_int() {
 
 SimradDgClock::SimradDgClock(const unsigned char *data) {
     size = GET_U4(data,0);
-    //cout << "size: " << size << endl; // 28
-    
+    assert (28==size);
     stx = GET_U1(data,4);
     id = GET_U1(data,5);
-    em_model = GET_U2(data,6);
+    assert(DG_ID_CLOCK == id);
+    em_model = GET_U2(data,6);  // 3020 for the 3002
     date_raw = GET_U4(data,8);
     millisec_raw = GET_U4(data,12);
     clock_counter = GET_U2(data,16);
@@ -193,16 +183,11 @@ SimradDgClock::print_raw() {
 
 void
 SimradDgClock::print_time() {
-    //tm time, time_sensor;
-    //em_time2tm_struct(date_raw, millisec_raw,time);
-    //em_time2tm_struct(date_sensor_raw, millisec_sensor_raw, time_sensor);
     //cout << asctime(&time) << " ---- ";
-    //cout << asctime(&time_sensor) << endl;
     const int unixtime = emtime2unixtime(date_raw, millisec_raw);
     const int unixtime_sensor = emtime2unixtime(date_sensor_raw, millisec_sensor_raw);
     cout << "unix times: " << unixtime << " " << unixtime_sensor << endl;
 }
-
 
 int main(int argc, char *argv[]) {
     if (argc != 2) {
@@ -229,7 +214,7 @@ int main(int argc, char *argv[]) {
         perror("Unable to open file");
         exit(EXIT_FAILURE);
     }
-    //cout << "fd: " << fd << " size:" << file_size << " " << PROT_READ << " " << MAP_FILE << endl;
+
     const unsigned char *data = (unsigned char *)mmap (0, file_size, PROT_READ,  MAP_FILE | MAP_PRIVATE, fd, 0);
     if (MAP_FAILED == data) {
         perror("mmap failed for em raw file");
@@ -241,7 +226,6 @@ int main(int argc, char *argv[]) {
     cout.setf(ios::fixed, ios::floatfield);
     cout.setf(ios::showpoint);
     cout.precision(4);
-
 
     size_t cur_pos = 0;
     while (cur_pos < file_size) {
@@ -261,7 +245,6 @@ int main(int argc, char *argv[]) {
                 exit(EXIT_FAILURE);
                 continue;
             }
-            //cout << "double check:" << checksum << " " << compute_checksum(dg_data,size) << endl;;
         }
 
         if (DG_ID_CLOCK == id) {
@@ -270,14 +253,6 @@ int main(int argc, char *argv[]) {
             const double t = clock.unixtime();
             const double t_sensor = clock.unixtime_sensor();
             cout << "clock times: " << t << " " << t_sensor << "  diff: " << t - t_sensor << endl;
-            //cout << "msecs: " << clock.millisec_raw << " " << clock.millisec_sensor_raw << " " << clock.millisec_raw - clock.millisec_sensor_raw<< endl;
-            //cout << clock.unixtime_int() << " " << clock.unixtime_int_sensor() << endl;
-            //clock.print_raw();
-            //clock.print_time();
-            //cerr << "after" << endl;
-            //clocks.push_back(SimradDgClock(dg_data));
-            //cout << "early" << endl;
-            //exit(1);
         }
 
         //cout << "datagram: size="<<size<<" id="<<int(id)<<" stx="<<int(stx)<<" etx="<<int(etx)<<" checksum="<<checksum<<  endl;
