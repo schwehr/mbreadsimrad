@@ -36,8 +36,12 @@ simrad.o: simrad.cpp simrad.h
 clean:
 	rm -f *.a test-simrad *.o
 
-BASE:=mbreadsimrad-0.1
+BASE:=mbreadsimrad-0.1-20100809
 TAR:=${BASE}.tar
 tar:
-	rm 
-	mkdir
+	rm -rf ${BASE}
+	mkdir ${BASE}
+	cp *.h *.cpp Makefile ${BASE}/
+	tar cf ${TAR} ${BASE}
+	bzip2 -9 ${TAR}
+	rm -rf ${BASE}
