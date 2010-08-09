@@ -67,7 +67,8 @@ bool emtime2tm_struct (const unsigned int date,
 
     const int tm_hour = millisec / (1000 * 60 * 60);
     const int tm_min = (millisec % (1000 * 60 * 60)) / (1000 * 60) ;
-    const int tm_sec = (millisec % (1000 * 60 * 60)) % (1000 * 60) / 1000 ;
+    //const int tm_sec = (millisec % (1000 * 60 * 60)) % (1000 * 60) / 1000 ;
+    const int tm_sec = (millisec % (1000 * 60)) / 1000 ;
 
     // Grrr... Hate going through a string to make this work
     char buf[256];
@@ -79,7 +80,7 @@ bool emtime2tm_struct (const unsigned int date,
         perror("Unable to parse ISO time");
         return false;
     }
-    t.tm_zone = "UTC";
+    t.tm_zone = 0; // "UTC";
     t.tm_gmtoff = 0;
     return true;
 }
@@ -133,14 +134,19 @@ public:
 
 double SimradDgClock::unixtime_sensor() {
     int sec_int = emtime2unixtime(date_sensor_raw, millisec_sensor_raw);
-    double sec_decimal = (millisec_sensor_raw % (1000 * 60 * 60)) % (1000 * 60) % 1000 / 1000.;
+    //double sec_decimal = (millisec_sensor_raw % (1000 * 60 * 60)) % (1000 * 60) % 1000 / 1000.;
+    double sec_decimal = (millisec_sensor_raw % 1000) / 1000.;
+    //cout << "sensor: " << sec_int << " " << sec_decimal << "  from " << millisec_sensor_raw << endl;
     return sec_int + sec_decimal;
 }
 
 double SimradDgClock::unixtime() {
     int sec_int = emtime2unixtime(date_raw, millisec_raw);
-    double sec_decimal = (millisec_raw % (1000 * 60 * 60)) % (1000 * 60) % 1000 / 1000.;
-    return sec_int + sec_decimal;
+    //double sec_decimal = (millisec_raw % (1000 * 60 * 60)) % (1000 * 60) % 1000 / 1000.;
+    double sec_decimal = (millisec_raw % 1000) / 1000.;
+    double result = sec_int + sec_decimal;
+    //cout << "internal: " << sec_int << " " << sec_decimal << "  from " << millisec_sensor_raw << " -> " << result << endl;
+    return result;
 }
 
 int SimradDgClock::unixtime_int_sensor() {
@@ -152,6 +158,8 @@ int SimradDgClock::unixtime_int() {
 
 SimradDgClock::SimradDgClock(const unsigned char *data) {
     size = GET_U4(data,0);
+    //cout << "size: " << size << endl; // 28
+    
     stx = GET_U1(data,4);
     id = GET_U1(data,5);
     em_model = GET_U2(data,6);
@@ -259,10 +267,10 @@ int main(int argc, char *argv[]) {
         if (DG_ID_CLOCK == id) {
             //cout << "clock" << endl;
             SimradDgClock clock(dg_data);
-            const float t = clock.unixtime();
-            const float t_sensor = clock.unixtime_sensor();
+            const double t = clock.unixtime();
+            const double t_sensor = clock.unixtime_sensor();
             cout << "clock times: " << t << " " << t_sensor << "  diff: " << t - t_sensor << endl;
-            cout << "msecs: " << clock.millisec_raw << " " << clock.millisec_sensor_raw << " " << clock.millisec_raw - clock.millisec_sensor_raw<< endl;
+            //cout << "msecs: " << clock.millisec_raw << " " << clock.millisec_sensor_raw << " " << clock.millisec_raw - clock.millisec_sensor_raw<< endl;
             //cout << clock.unixtime_int() << " " << clock.unixtime_int_sensor() << endl;
             //clock.print_raw();
             //clock.print_time();
