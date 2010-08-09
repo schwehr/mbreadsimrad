@@ -36,8 +36,11 @@ const unsigned char STX = 2; // Start-of-transmission
 const unsigned char ETX = 3; // End-of-transmission
 const unsigned int DG_ID_CLOCK = 67;
 
-// FIX: make these inline function
-#define GET_U4(start,offset) ((unsigned int) *((unsigned int *) (start+offset)))
+// FIX: make these inline functions?
+//#define GET_U4(start,offset) ((unsigned int) *((unsigned int *) (start+offset)))
+inline unsigned int GET_U4(const unsigned char *start, const size_t offset) {
+    return (unsigned int) *((unsigned int *)(start+offset));
+}
 #define GET_U2(start,offset) ((unsigned short) *((unsigned short *) (start+offset)))
 #define GET_U1(start,offset) ((unsigned char) *((unsigned char *) (start+offset)))
 
