@@ -12,7 +12,10 @@ DEBUG := -g3 -O0
 #-D_GLIBCXX_DEBUG
 
 CXXOPTIMIZE := -O3 -funroll-loops -fexpensive-optimizations -ffast-math -DNDEBUG
-CXXWARNINGS := -pedantic -Wall -W -Wimplicit -Wredundant-decls -Wmissing-prototypes
+CXXWARNINGS := -pedantic -Wall -W -Wimplicit -Wredundant-decls -Wmissing-prototypes 
+
+# Allow foo = "string"
+CXXWARNINGS += -Wno-write-strings
 
 ifdef OPTIMIZE
   CXX := g++-fsf-4.5 # Specific to fink
