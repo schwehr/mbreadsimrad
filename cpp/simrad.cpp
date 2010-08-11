@@ -207,7 +207,6 @@ SimradDgUnknown::~SimradDgUnknown() {
 // SimradDgClock
 //////////////////////////////////////////////////////////////////////
 
-
 SimradDgClock::SimradDgClock(const unsigned char *data, const unsigned int size) {
     assert(data);
     assert(0<size && size<1000000);
