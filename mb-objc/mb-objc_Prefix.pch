@@ -1,0 +1,7 @@
+//
+// Prefix header for all source files of the 'mb-objc' target in the 'mb-objc' project.
+//
+
+#ifdef __OBJC__
+    #import <Foundation/Foundation.h>
+#endif
