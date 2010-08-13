@@ -181,6 +181,30 @@ double emtime2unixtime_double(const unsigned int date, const unsigned int millis
 }
 @end
 
+@implementation SimradDgPos
+-(NSString *)description {
+	return [NSString stringWithFormat:@"DgPos: %.4lf %.4lf cog: %.4lf heading: %lf", x, y, cog, heading];
+}
+-(id)initWithSimradDg:(SimradDg *)dg data:(NSData *)data dgStart:(size_t)dgStart size:(unsigned int)size {
+	NSLog(@"In SimradDgPos initWithSimradDg");
+	self = [super initWithSimradDg:dg];
+	if (!self) return self;
+	unsigned int tmpU4;
+	unsigned short tmpU2;
+	[data getBytes:&tmpU4 range:NSMakeRange(dgStart+16, 4)]; y = tmpU4 / 2.e7;
+	[data getBytes:&tmpU4 range:NSMakeRange(dgStart+20, 4)]; x = tmpU4 / 1.e7;
+	[data getBytes:&fixQualCM range:NSMakeRange(dgStart+24, 2)];
+	[data getBytes:&sogCMS range:NSMakeRange(dgStart+26, 2)];
+	[data getBytes:&tmpU2 range:NSMakeRange(dgStart+28, 2)]; cog = tmpU2 * 1e-2;
+	[data getBytes:&tmpU2 range:NSMakeRange(dgStart+30, 2)]; heading = tmpU2 * 1e-2;
+	//[data getBytes:& range:NSMakeRange(dgStart+, )];
+	return self;
+}
+
+@end
+
+
+
 @implementation SimradDg
 @synthesize dgId, em_model, clock_counter, timestamp, ping_counter, serial_num;
 - (NSString *)description {
@@ -231,6 +255,11 @@ double emtime2unixtime_double(const unsigned int date, const unsigned int millis
 			//NSLog(@"Trying to create a CLOCK");
 			self = [[SimradDgClock alloc] initWithSimradDg:self data:data dgStart:dgStart size:size];
 			break;
+		case SIMRAD_DG_POSITIONS:
+			NSLog(@"Trying to create a POS");
+			self = [[SimradDgPos alloc] initWithSimradDg:self data:data dgStart:dgStart size:size];
+			break;
+
 		default:
 			// NOP - Leave it a generic/unknown datagram
 			break;

@@ -24,13 +24,13 @@ int main (int argc, const char * argv[]) {
 	int dgCount;
 	size_t dgStart;
 	for (dgStart = 0, dgCount=0; dgStart < data.length; dgCount++) {
-		if (dgCount > 30) {
+		if (dgCount > 3000) {
 			NSLog(@"Early exit");
 			break;
 		}
 		[data getBytes:&size range:NSMakeRange(dgStart, 4)];
 		SimradDg *dg = [[SimradDg alloc] initWithData:data dgStart:dgStart+4 size:size];
-		if (dg.dgId != SIMRAD_DG_CLOCK) {
+		if (dg.dgId == SIMRAD_DG_POSITIONS) {
 			NSLog(@"Datagram: %@",dg);
 		}
 

@@ -109,15 +109,20 @@ enum SimradDgEnum {
 -(id)initWithSimradDg:(SimradDg *)dg data:(NSData *)data dgStart:(size_t)dgStart size:(unsigned int)size;
 @end
 
-#if 0
-@interface SimradDgDepth : SimradDg
+@interface SimradDgPos : SimradDg
 {
-	vector<>;
+	float x,y; // lon, lat
+	unsigned short fixQualCM, sogCMS;
+	float cog, heading;
+	// Bit masked of the posSystemDescriptor:
+	//int posSystemNum;
+	//bool posSystemActive;
+	//bool posSystemUseInputDg;
+	//NSString *inputStr;
 }
 
-@property (readonly) double ;
--(id)initWithSimradDg:(SimradDg *)dg data:(NSData *)data dgStart:(size_t)dgStart size:(unsigned int)size;
+
+
 @end
-#endif
 
 #endif // __SIMRAD_H__
