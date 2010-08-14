@@ -1,0 +1,4 @@
+# -*- makefile -*-
+
+EM_Datagram_Formats_RevM.pdf:
+	wget http://www.ldeo.columbia.edu/res/pi/MB-System/formatdoc/EM_Datagram_Formats_RevM.pdf
