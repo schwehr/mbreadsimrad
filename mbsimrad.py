@@ -11,6 +11,9 @@ import datetime
 class SimradError(Exception):
     pass
 
+class SimradErrorBadChecksum(SimradError):
+    pass
+
 def decode_date(date):
     year = date / 10000
     month = (date % 10000) / 100
@@ -65,38 +68,8 @@ class Position(object):
     def __unicode__(self):
         return 'Pos: xy {lon} {lat} {cog} {heading}'.format(**self.__dict__)
 
-datagram_type_lut = {
-    'D': ('depth',None),
-    'X': ('XYZ',None),
-    'K': ('Central beams echogram',None),
-    'F': ('Raw range and beam angles (old)',None),
-    'f': ('Raw range and beam angles (new)',None),
-    'N': ('Raw range and beam angle 78 ',None),
-    'S': ('Seabed image ',None),
-    'Y': ('Seabed image data 89 ',None),
-    'k': ('Water column ',None),
-    'I': ('Installation parameters',None),
-    'i': ('installation parameters',None), # same as I and r
-    'r': ('remote information',None), # same as I and i
-    'R': ('Runtime parameters',None),
-    'U': ('Sound speed profile ',None),
-    'A': ('Attitude ',None),
-    'n': ('Network attitude velocity  110',None),
-    'C': ('Clock',Clock),
-    'h': ('Depth (pressure) or height ',None),
-    'H': ('Headings',None),
-    'P': ('Positions',Position),
-    'E': ('Single beam echo sounder depth ',None),
-    'T': ('Tide',None),
-    'G': ('Surface sound speed',None),
-    'U': ('Sound speed profile',None),
-    'W': ('Kongsberg Maritime SSP output',None),
-    'J': ('Mechanical transducer tilts',None),
-    '3': ('Extra Parameters',None),
-    '0': ('PU Id outputs',None),
-    '1': ('PU Status output',None),
-    'B': ('PU BIST result',None), # Built in self test
-    }
+
+
 
 class Simrad(object):
     def __init__(self,filename):
@@ -126,8 +99,10 @@ class Datagram(object):
 
         assert(3 == ord(data[offset+self.length+1])) # End marker
         self.checksum_reported = struct.unpack('H',data[offset+self.length+2:offset+self.length+4])[0]
-        self.checksum_actual = sum(map(ord,data[offset+5:offset+self.length]))
+        self.checksum_actual = sum(map(ord,data[offset+4:offset+self.length-2]))
         print ('checksum:',self.checksum_actual,self.checksum_reported)
+        if self.checksum_reported != self.checksum_actual:
+            raise SimradErrorBadChecksum
 
     def __str__(self): return self.__unicode__()
     def __unicode__(self):
@@ -186,16 +161,51 @@ def shiptrack_kml(simrad,outfile):
 </kml>
 ''')
 
+datagram_type_lut = {
+    'D': ('depth',None),
+    'X': ('XYZ',None),
+    'K': ('Central beams echogram',None),
+    'F': ('Raw range and beam angles (old)',None),
+    'f': ('Raw range and beam angles (new)',None),
+    'N': ('Raw range and beam angle 78 ',None),
+    'S': ('Seabed image ',None),
+    'Y': ('Seabed image data 89 ',None),
+    'k': ('Water column ',None),
+    'I': ('Installation parameters',None),
+    'i': ('installation parameters',None), # same as I and r
+    'r': ('remote information',None), # same as I and i
+    'R': ('Runtime parameters',None),
+    'U': ('Sound speed profile ',None),
+    'A': ('Attitude ',None),
+    'n': ('Network attitude velocity  110',None),
+    'C': ('Clock',Clock),
+    'h': ('Depth (pressure) or height ',None),
+    'H': ('Headings',None),
+    'P': ('Positions',Position),
+    'E': ('Single beam echo sounder depth ',None),
+    'T': ('Tide',None),
+    'G': ('Surface sound speed',None),
+    'U': ('Sound speed profile',None),
+    'W': ('Kongsberg Maritime SSP output',None),
+    'J': ('Mechanical transducer tilts',None),
+    '3': ('Extra Parameters',None),
+    '0': ('PU Id outputs',None),
+    '1': ('PU Status output',None),
+    'B': ('PU BIST result',None), # Built in self test
+    }
+
+
 def main():
     simrad = Simrad('0034_20100604_005123_Healy.all')
-    if False:
-      for count,dg in enumerate(simrad):
-        #print (count, dg.length, dg.dgram_type, )
-        obj = dg.get_object()
-        #if obj is None: continue
-        #print (count, str(dg))
-        print (count, str(dg), str(obj) )
     if True:
+        for count,dg in enumerate(simrad):
+            if count > 20: break
+            #print (count, dg.length, dg.dgram_type, )
+            obj = dg.get_object()
+            #if obj is None: continue
+            #print (count, str(dg))
+            print (count, str(dg), str(obj) )
+    if False:
         outfile = open('0034_20100604_005123_Healy.track.kml','w')
         shiptrack_kml(simrad,outfile)
     
