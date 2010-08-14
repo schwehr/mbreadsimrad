@@ -119,7 +119,7 @@ unsigned short dg_checksum(const unsigned char *dg_data, const size_t size) {
 
 
 SimradDg *
-SimradFile::SimradFile::next(const SimradDgEnum dg_type) {
+SimradFile::next(const SimradDgEnum dg_type) {
     assert(dg_type == SIMRAD_DG_ANY); // FIX: allow this to change
 
     const unsigned char *dg_data = data + cur_offset;
