@@ -15,30 +15,30 @@ datagram_names = {
     0x30: 'PU Id outputs',		# char: '0'	dec:  48
     0x31: 'PU Status output',		# char: '1'	dec:  49
     0x33: 'Extra Parameters',		# char: '3'	dec:  51
-    0x41: 'Attitude ',			# char: 'A'	dec:  65
+    0x41: 'Attitude',			# char: 'A'	dec:  65
     0x42: 'PU BIST result',		# char: 'B'	dec:  66
     0x43: 'Clock',			# char: 'C'	dec:  67
     0x44: 'depth',			# char: 'D'	dec:  68
-    0x45: 'Single beam depth ',		# char: 'E'	dec:  69
+    0x45: 'Single beam depth',		# char: 'E'	dec:  69
     0x46: 'Range and angles (old)',	# char: 'F'	dec:  70
     0x47: 'Surface sound speed',	# char: 'G'	dec:  71
     0x48: 'Headings',			# char: 'H'	dec:  72
     0x49: 'Installation params',	# char: 'I'	dec:  73
     0x4a: 'Mech transducer tilts',	# char: 'J'	dec:  74
     0x4b: 'Central beams echogram',	# char: 'K'	dec:  75
-    0x4e: 'Range and angle 78 ',	# char: 'N'	dec:  78
+    0x4e: 'Range and angle 78',		# char: 'N'	dec:  78
     0x50: 'Positions',			# char: 'P'	dec:  80
     0x52: 'Runtime parameters',		# char: 'R'	dec:  82
-    0x53: 'Seabed image ',		# char: 'S'	dec:  83
+    0x53: 'Seabed image',		# char: 'S'	dec:  83
     0x54: 'Tide',			# char: 'T'	dec:  84
     0x55: 'Sound speed profile',	# char: 'U'	dec:  85
     0x57: 'SSP output',			# char: 'W'	dec:  87
     0x58: 'XYZ',			# char: 'X'	dec:  88
-    0x59: 'Seabed image data 89 ',	# char: 'Y'	dec:  89
+    0x59: 'Seabed image data 89',	# char: 'Y'	dec:  89
     0x66: 'Range and angles (new)',	# char: 'f'	dec:  102
-    0x68: 'Depth or height ',		# char: 'h'	dec:  104
+    0x68: 'Depth or height',		# char: 'h'	dec:  104
     0x69: 'installation params',	# char: 'i'	dec:  105
-    0x6b: 'Water column ',		# char: 'k'	dec:  107
+    0x6b: 'Water column',		# char: 'k'	dec:  107
     0x6e: 'Network attitude velocity',	# char: 'n'	dec:  110
     0x72: 'remote information',		# char: 'r'	dec:  114
 }
@@ -93,8 +93,8 @@ class Datagram(object):
             name = datagram_names[self.dg_id]
         except:
             name = 'unknown_%d' % self.dg_id
-        return 'Unhandled datagram: {name} {model} {timestamp} {counter} {serial}'.format(
-            name=name, **self.__dict__)
+        return 'Unhandled datagram {dg_id} {dg_id_hex}: {name} {model} {timestamp} {counter} {serial}'.format(
+            name=name, dg_id_hex = hex(self.dg_id), **self.__dict__)
     
 class Clock(Datagram):
     def __init__(self, data, offset, size):
@@ -121,14 +121,81 @@ class Position(Datagram):
         self.heading = heading * 1e-2
         self.input_str = data[offset+34:offset+34+byte_count]
         
-        #print ('Pos:',self.__dict__)
     def __str__(self): return self.__unicode__()
     def __unicode__(self):
         return 'Pos: {x} {y} {fix_qual} {sog_cms} {cog} {heading}'.format(**self.__dict__)
 
+class RuntimeParam(Datagram):
+    def __init__(self, data, offset, size):
+        Datagram.__init__(self, data, offset, size)
+
+        # FIX: not verified
+        self.operator_status = data[offset+16]
+        self.proc_status = data[offset+17]
+        self.bsp_status = data[offset+18]
+        self.sonar_head_status = data[offset+19]
+        self.mode = data[offset+20]
+        self.filter_id = data[offset+21]
+        
+        self.depth_min = struct.unpack('H',data[offset+22:offset+24])[0]
+        self.depth_max = struct.unpack('H',data[offset+24:offset+26])[0]
+
+        self.absorp_coeff = struct.unpack('H',data[offset+26:offset+28])[0]
+        self.tx_pulse_len = struct.unpack('H',data[offset+28:offset+30])[0]
+        self.tx_beamwidth_deg = struct.unpack('H',data[offset+30:offset+32])[0] / 10.
+        self.tx_power_re_max = struct.unpack('h',data[offset+32:offset+34])[0]
+
+        self.rx_beamwidth_deg = ord(data[offset+32]) / 10.
+        self.rx_bandwidth_hz = ord(data[offset+33]) * 50
+
+        self.mode2_or_fixed_gain_db = ord(data[offset+34])
+        self.tvg_crossover_deg = ord(data[offset+35])
+        self.source_of_ss_at_transducer = ord(data[offset+36])
+        self.max_port_swath_m = struct.unpack('H',data[offset+37:offset+39])[0]
+        self.beam_spacing = ord(data[offset+39])
+        self.max_port_cov_deg = struct.unpack('H',data[offset+37:offset+39])[0]
+
+        self.yaw_pitch_stablization_mode = ord(data[39])
+
+        self.max_port_swath_m = struct.unpack('H',data[offset+40:offset+42])[0]
+        self.max_port_cov_deg = struct.unpack('H',data[offset+42:offset+44])[0]
+
+        self.tx_tilt_def = struct.unpack('H',data[offset+44:offset+46])[0]
+        self.filter_id2 = ord(data[offset+46])
+        etx = ord(data[offset+47])
+        if (etx!= ETX):
+            print ('RuntimePara_ETX_FAILURE: need to fix datagram',etx,size,47)
+            #sys.exit('bye')
+        # FIX: if EM 1002, durotong SSD
+        
+    def __str__(self): return self.__unicode__()
+    def __unicode__(self):
+        return 'RuntimeParam: {depth_min} {depth_max}'.format(**self.__dict__)
+
+class InstParam(Datagram):
+    def __init__(self, data, offset, size):
+        Datagram.__init__(self, data, offset, size)
+
+        # FIX: not verified
+
+        # This overwrites the normal header paramers
+        self.survey_line_num = struct.unpack('H',data[offset+12:offset+14])[0]
+        # system seria number here
+        self.serial_sonar_head = struct.unpack('H',data[offset+18:offset+20])[0]
+        params_str = data[offset+20:offset+size-3].rstrip(chr(0))
+        print ('params_str:', params_str)
+
+    def __str__(self): return self.__unicode__()
+    def __unicode__(self):
+        return 'InstParam: '.format(**self.__dict__)
+
+
 datagram_classes = {
     0x43: Clock,			# char: 'C'	dec:  67
+    0x49: InstParam,			# char: 'I'	dec:  73
     0x50: Position,			# char: 'P'	dec:  80
+    0x52: RuntimeParam,			# char: 'R'	dec:  82
+
 }
 
 
@@ -194,8 +261,8 @@ def shiptrack_kml(simrad,outfile):
 def main():
     simrad_file = SimradFile('0018_20050728_153458_Heron.all')
     #simrad_file = SimradFile('0034_20100604_005123_Healy.all')
-    #loop_datagrams(simrad_file)
-    shiptrack_kml(simrad_file,file('out.kml','w'))
+    loop_datagrams(simrad_file)
+    #shiptrack_kml(simrad_file,file('out.kml','w'))
 
 if __name__ == '__main__':
     main()
