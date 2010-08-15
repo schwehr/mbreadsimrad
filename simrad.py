@@ -50,27 +50,10 @@ class SimradError(Exception):
 class SimradErrorBadChecksum(SimradError):
     pass
 
-def decode_date(date):
-    return year,month,day
-
-def decode_time(time):
-    hour = time / 360000
-    millisec = time % 100
-    microsec = millisec * 1000
-    remainder = (time % 360000) / 100
-    minute = remainder / 60
-    second = remainder % 60
-    return hour, minute, second, microsec # microsec for python datetime
-
 def date_and_time_to_datetime(date_raw,ms_raw):
     year = date_raw / 10000
     month = (date_raw % 10000) / 100
     day = date_raw % 100
-
-    #hour = ms_raw / 3600000
-    #minute = ms_raw % (1000 * 60 * 60) / 60000
-    #second = ms_raw % 1000 * 60 / 1000
-    #print (hour, minute, second)
 
     millisec = ms_raw % 1000
     microsec = millisec * 1000
@@ -78,12 +61,9 @@ def date_and_time_to_datetime(date_raw,ms_raw):
     second = (ms_raw / 1000) % 60
     minute = (ms_raw / 60000) % 60
     hour = (ms_raw / 3600000) % 24
-    #print ('time:', hour, minute, second)
-    # Is this right?
     #print ('%d %04d-%02d-%02d T %02d:%02d:%02d.%04d' % (ms_raw, year, month, day,
     #                                                 hour, minute, second,
     #                                                 millisec))
-
     return datetime.datetime(year, month, day, hour, minute, second, microsec)
 
 
@@ -92,13 +72,13 @@ class Datagram(object):
         '''offset: points to the start of the data (STX) right after the size field in a file
         size: length of the datagram from STX through to and including the checksum
         '''
-        assert (STX == ord(data[offset]))
-        assert (ETX == ord(data[offset+size-3]))
+        #assert (STX == ord(data[offset]))
+        #assert (ETX == ord(data[offset+size-3]))
         self.dg_id = ord(data[offset+1])
-        checksum_reported = struct.unpack('H',data[offset+size-2:offset+size])[0]
+        #checksum_reported = struct.unpack('H',data[offset+size-2:offset+size])[0]
         # Checksum is of the data between STX and ETX
-        checksum_computed = sum(map(ord,data[offset+1:offset+size-3])) % (256*256)
-        assert (checksum_reported == checksum_computed)
+        #checksum_computed = sum(map(ord,data[offset+1:offset+size-3])) % (256*256)
+        #assert (checksum_reported == checksum_computed)
 
         # This header is in every datagram
         self.model = struct.unpack('H',data[offset+2:offset+4])[0]
@@ -184,7 +164,7 @@ class SimradIterator(object):
         return dg
 
 def loop_datagrams(simrad_file):
-    for count, (dg_length, dg_id, dg) in enumerate(simrad_file):
+    for count, dg in enumerate(simrad_file):
         #if count > 200: break
         #print ( dg_id, '\t',dg_length, ':\t', datagram_names[dg_id])
         print (str(dg))
