@@ -8,6 +8,42 @@ import struct # For decoding the fields within a datagram
 import os, sys
 import datetime
 
+STX = 2
+ETX = 3
+
+datagram_names = {
+    0x30: 'PU Id outputs',		# char: '0'	dec:  48
+    0x31: 'PU Status output',		# char: '1'	dec:  49
+    0x33: 'Extra Parameters',		# char: '3'	dec:  51
+    0x41: 'Attitude ',			# char: 'A'	dec:  65
+    0x42: 'PU BIST result',		# char: 'B'	dec:  66
+    0x43: 'Clock',			# char: 'C'	dec:  67
+    0x44: 'depth',			# char: 'D'	dec:  68
+    0x45: 'Single beam depth ',		# char: 'E'	dec:  69
+    0x46: 'Range and angles (old)',	# char: 'F'	dec:  70
+    0x47: 'Surface sound speed',	# char: 'G'	dec:  71
+    0x48: 'Headings',			# char: 'H'	dec:  72
+    0x49: 'Installation params',	# char: 'I'	dec:  73
+    0x4a: 'Mech transducer tilts',	# char: 'J'	dec:  74
+    0x4b: 'Central beams echogram',	# char: 'K'	dec:  75
+    0x4e: 'Range and angle 78 ',	# char: 'N'	dec:  78
+    0x50: 'Positions',			# char: 'P'	dec:  80
+    0x52: 'Runtime parameters',		# char: 'R'	dec:  82
+    0x53: 'Seabed image ',		# char: 'S'	dec:  83
+    0x54: 'Tide',			# char: 'T'	dec:  84
+    0x55: 'Sound speed profile',	# char: 'U'	dec:  85
+    0x57: 'SSP output',			# char: 'W'	dec:  87
+    0x58: 'XYZ',			# char: 'X'	dec:  88
+    0x59: 'Seabed image data 89 ',	# char: 'Y'	dec:  89
+    0x66: 'Range and angles (new)',	# char: 'f'	dec:  102
+    0x68: 'Depth or height ',		# char: 'h'	dec:  104
+    0x69: 'installation params',	# char: 'i'	dec:  105
+    0x6b: 'Water column ',		# char: 'k'	dec:  107
+    0x6e: 'Network attitude velocity',	# char: 'n'	dec:  110
+    0x72: 'remote information',		# char: 'r'	dec:  114
+}
+
+
 class SimradError(Exception):
     pass
 
@@ -15,9 +51,6 @@ class SimradErrorBadChecksum(SimradError):
     pass
 
 def decode_date(date):
-    year = date / 10000
-    month = (date % 10000) / 100
-    day = date % 100
     return year,month,day
 
 def decode_time(time):
@@ -29,115 +62,133 @@ def decode_time(time):
     second = remainder % 60
     return hour, minute, second, microsec # microsec for python datetime
 
-def date_and_time_to_datetime(date,time):
-    year, month, day = decode_date(date)
-    hour, min, sec, microsec = decode_time(time)
-    return datetime.datetime(year, month, day, hour, min, sec, microsec)
+def date_and_time_to_datetime(date_raw,ms_raw):
+    year = date_raw / 10000
+    month = (date_raw % 10000) / 100
+    day = date_raw % 100
 
-class Clock(object):
-    def __init__(self,data,offset=0):
-        self.model = struct.unpack('H',data[offset+6:offset+8])[0]
-        date,time,self.counter = struct.unpack('IIH',data[offset+8:offset+18])
-        self.timestamp = date_and_time_to_datetime(date,time)
-        #self.serial,date,time,pps = struct.unpack('HIIB',data[offset+18:offset+18+11])
-        # Python struct can't handle non-aligned reads it seems
-        self.serial = struct.unpack('H',data[offset+18:offset+20])[0]
-        date,time,pps = struct.unpack('IIB',data[offset+20:offset+20+9])
-        self.timestamp_ext = date_and_time_to_datetime(date,time)
-        self.pps = bool(pps)
+    #hour = ms_raw / 3600000
+    #minute = ms_raw % (1000 * 60 * 60) / 60000
+    #second = ms_raw % 1000 * 60 / 1000
+    #print (hour, minute, second)
+
+    millisec = ms_raw % 1000
+    microsec = millisec * 1000
+
+    second = (ms_raw / 1000) % 60
+    minute = (ms_raw / 60000) % 60
+    hour = (ms_raw / 3600000) % 24
+    #print ('time:', hour, minute, second)
+    # Is this right?
+    #print ('%d %04d-%02d-%02d T %02d:%02d:%02d.%04d' % (ms_raw, year, month, day,
+    #                                                 hour, minute, second,
+    #                                                 millisec))
+
+    return datetime.datetime(year, month, day, hour, minute, second, microsec)
+
+
+class Datagram(object):
+    def __init__(self, data, offset, size):
+        '''offset: points to the start of the data (STX) right after the size field in a file
+        size: length of the datagram from STX through to and including the checksum
+        '''
+        assert (STX == ord(data[offset]))
+        assert (ETX == ord(data[offset+size-3]))
+        self.dg_id = ord(data[offset+1])
+        checksum_reported = struct.unpack('H',data[offset+size-2:offset+size])[0]
+        # Checksum is of the data between STX and ETX
+        checksum_computed = sum(map(ord,data[offset+1:offset+size-3])) % (256*256)
+        assert (checksum_reported == checksum_computed)
+
+        # This header is in every datagram
+        self.model = struct.unpack('H',data[offset+2:offset+4])[0]
+        date_raw, ms_raw, self.counter = struct.unpack('IIH',data[offset+4:offset+14])
+        self.timestamp = date_and_time_to_datetime(date_raw,ms_raw)
+        self.serial  = struct.unpack('H',data[offset+14:offset+16])[0]
+        return
 
     def __str__(self): return self.__unicode__()
     def __unicode__(self):
-        #print (self.__dict__)
-        return 'Clock: {timestamp} -- {model} {counter} {serial} {timestamp_ext} {pps}'.format(**self.__dict__)
+        try:
+            name = datagram_names[self.dg_id]
+        except:
+            name = 'unknown_%d' % self.dg_id
+        return 'Unhandled datagram: {name} {model} {timestamp} {counter} {serial}'.format(
+            name=name, **self.__dict__)
+    
+class Clock(Datagram):
+    def __init__(self, data, offset, size):
+        # Python struct can't handle non-aligned reads it seems
+        Datagram.__init__(self, data, offset, size)
+        date_raw,ms_raw,pps = struct.unpack('IIB',data[offset+16:offset+16+9])
+        self.timestamp_external = date_and_time_to_datetime(date_raw, ms_raw)
+        self.pps = bool(pps)
+        return
 
-class Position(object):
-    def __init__(self,data,offset=0):
-        self.model = struct.unpack('H',data[offset+6:offset+8])[0]
-        date, time, self.counter, self.serial = struct.unpack('IIHH',data[offset+8:offset+20])
-        lat_raw, lon_raw = struct.unpack('ii',data[offset+20:offset+28])
-        self.lat = lat_raw / 2e7
-        self.lon = lon_raw / 1e7
-        self.fix_qual, self.sog_cms, cog, heading, self.pos_descriptor, self.byte_count = struct.unpack('HHHHBB',data[offset+28:offset+38])
+    def __str__(self): return self.__unicode__()
+    def __unicode__(self):
+        return 'Clock: {timestamp} {timestamp_external} {pps}'.format(**self.__dict__)
+        #return 'Clock: {timestamp} '.format(**self.__dict__)
+
+class Position(Datagram):
+    def __init__(self, data, offset, size):
+        Datagram.__init__(self, data, offset, size)
+        lat_raw, lon_raw = struct.unpack('ii',data[offset+16:offset+24])
+        self.y = lat_raw / 2e7
+        self.x = lon_raw / 1e7
+        self.fix_qual, self.sog_cms, cog, heading, self.pos_descriptor, byte_count = struct.unpack('HHHHBB',data[offset+24:offset+34])
         self.cog = cog * 1e-2
         self.heading = heading * 1e-2
-        self.input_str = data[offset+38:offset+38+self.byte_count]
+        self.input_str = data[offset+34:offset+34+byte_count]
         
         #print ('Pos:',self.__dict__)
     def __str__(self): return self.__unicode__()
     def __unicode__(self):
-        return 'Pos: xy {lon} {lat} {cog} {heading}'.format(**self.__dict__)
+        return 'Pos: {x} {y} {fix_qual} {sog_cms} {cog} {heading}'.format(**self.__dict__)
+
+datagram_classes = {
+    0x43: Clock,			# char: 'C'	dec:  67
+    0x50: Position,			# char: 'P'	dec:  80
+}
 
 
-
-
-class Simrad(object):
+class SimradFile(object):
     def __init__(self,filename):
         self.filename = filename
         tmp_file = open(filename, 'r+')
         self.size = os.path.getsize(filename)
         self.data = mmap.mmap(tmp_file.fileno(), self.size, access=mmap.ACCESS_READ)
-
     def __iter__(self):
         iter = SimradIterator(self)
         return iter
-
-class Datagram(object):
-    def __init__(self, data, offset):
-        'Data is a memory block with a data gram that starts at offset bytes into the block'
-        self.data = data
-        self.offset = offset
-        self.length = struct.unpack('I',data[offset:offset+4])[0]
-        #print ('length:',self.length)
-        #print ('STX:',ord(data[offset+4]))
-        assert(2== ord(data[offset+4])) #struct.unpack('B',data[offset+4])
-        self.dgram_type = data[offset+5]
-        #print ('dgram_type:',self.dgram_type,datagram_type_lut[self.dgram_type][0])
-
-        #for i in range(self.length-5,self.length+5):
-        #    print (self.length,i,':',data[offset+i],ord(data[offset+i]))
-
-        assert(3 == ord(data[offset+self.length+1])) # End marker
-        self.checksum_reported = struct.unpack('H',data[offset+self.length+2:offset+self.length+4])[0]
-        self.checksum_actual = sum(map(ord,data[offset+4:offset+self.length-2]))
-        print ('checksum:',self.checksum_actual,self.checksum_reported)
-        if self.checksum_reported != self.checksum_actual:
-            raise SimradErrorBadChecksum
-
-    def __str__(self): return self.__unicode__()
-    def __unicode__(self):
-        return 'dg: {length} {dg_type}, {dg_name}'.format(
-            length = self.length,
-            dg_type = self.dgram_type,
-            dg_name = datagram_type_lut[self.dgram_type][0],
-            )
-
-    def checksum_valid(self):
-        return self.checksum_reported == self.checksum_actual
-
-    def next(self):
-        'return the offset value for the next datagram'
-        return self.offset + self.length + 4
-
-    def get_object(self):
-        'Try to return a class instance for the datagram or None if not yet written'
-        cls = datagram_type_lut[self.dgram_type][1]
-        if cls is None: return None # Means not yet decoded
-        return cls(self.data, self.offset)
 
 class SimradIterator(object):
     def __init__(self,simrad):
         self.data = simrad.data
         self.offset = 0
-        self.size = simrad.size
+        self.file_size = simrad.size
     def __iter__(self):
         return self
     def next(self):
-        if self.offset >= self.size:
+        if self.offset >= self.file_size:
             raise StopIteration
-        dg = Datagram(self.data,self.offset)
-        self.offset = dg.next()
+        dg_length = struct.unpack('I',self.data[self.offset:self.offset+4])[0]
+        # Ignore STX
+        dg_id = ord(self.data[self.offset+5])
+        if dg_id in datagram_classes:
+            # Factory to build classes
+            dg = datagram_classes[dg_id](self.data, self.offset+4, dg_length)
+        else:
+            dg = Datagram(self.data, self.offset+4, dg_length) 
+        self.offset += 4 + dg_length
         return dg
+
+def loop_datagrams(simrad_file):
+    for count, (dg_length, dg_id, dg) in enumerate(simrad_file):
+        #if count > 200: break
+        #print ( dg_id, '\t',dg_length, ':\t', datagram_names[dg_id])
+        print (str(dg))
+        pass
 
 def shiptrack_kml(simrad,outfile):
     o = outfile
@@ -149,11 +200,8 @@ def shiptrack_kml(simrad,outfile):
 		<coordinates>\n''')
     for count,dg in enumerate(simrad):
         #print (dg)
-        if dg.dgram_type != 'P': continue
-        pos = dg.get_object()
-        #print ('P',str(pos))
-        #print (pos.__dict__)
-        o.write('{lon},{lat}\n'.format(**pos.__dict__))
+        if dg.dg_id != ord('P'): continue
+        o.write('{x},{y}\n'.format(**dg.__dict__))
 
     o.write('''		</coordinates>
 	</LineString>
@@ -161,54 +209,13 @@ def shiptrack_kml(simrad,outfile):
 </kml>
 ''')
 
-datagram_type_lut = {
-    'D': ('depth',None),
-    'X': ('XYZ',None),
-    'K': ('Central beams echogram',None),
-    'F': ('Raw range and beam angles (old)',None),
-    'f': ('Raw range and beam angles (new)',None),
-    'N': ('Raw range and beam angle 78 ',None),
-    'S': ('Seabed image ',None),
-    'Y': ('Seabed image data 89 ',None),
-    'k': ('Water column ',None),
-    'I': ('Installation parameters',None),
-    'i': ('installation parameters',None), # same as I and r
-    'r': ('remote information',None), # same as I and i
-    'R': ('Runtime parameters',None),
-    'U': ('Sound speed profile ',None),
-    'A': ('Attitude ',None),
-    'n': ('Network attitude velocity  110',None),
-    'C': ('Clock',Clock),
-    'h': ('Depth (pressure) or height ',None),
-    'H': ('Headings',None),
-    'P': ('Positions',Position),
-    'E': ('Single beam echo sounder depth ',None),
-    'T': ('Tide',None),
-    'G': ('Surface sound speed',None),
-    'U': ('Sound speed profile',None),
-    'W': ('Kongsberg Maritime SSP output',None),
-    'J': ('Mechanical transducer tilts',None),
-    '3': ('Extra Parameters',None),
-    '0': ('PU Id outputs',None),
-    '1': ('PU Status output',None),
-    'B': ('PU BIST result',None), # Built in self test
-    }
 
-
-def main():
-    simrad = Simrad('0034_20100604_005123_Healy.all')
-    if True:
-        for count,dg in enumerate(simrad):
-            if count > 20: break
-            #print (count, dg.length, dg.dgram_type, )
-            obj = dg.get_object()
-            #if obj is None: continue
-            #print (count, str(dg))
-            print (count, str(dg), str(obj) )
-    if False:
-        outfile = open('0034_20100604_005123_Healy.track.kml','w')
-        shiptrack_kml(simrad,outfile)
     
+def main():
+    simrad_file = SimradFile('0018_20050728_153458_Heron.all')
+    #simrad_file = SimradFile('0034_20100604_005123_Healy.all')
+    #loop_datagrams(simrad_file)
+    shiptrack_kml(simrad_file,file('out.kml','w'))
 
 if __name__ == '__main__':
     main()
