@@ -182,7 +182,25 @@ class InstParam(Datagram):
         # system seria number here
         self.serial_sonar_head = struct.unpack('H',data[offset+18:offset+20])[0]
         params_str = data[offset+20:offset+size-3].rstrip(chr(0))
-        print ('params_str:', params_str)
+        #print ('params_str:', params_str)
+        #self.__dict__.update(parse_param_str)
+        self.parse_param_str(params_str)
+        print ('InstParam:',self.__dict__)
+
+    def parse_param_str(self,s):
+        fields = s.rstrip(',').split(',')
+        #r = dict()
+        for field in fields:
+            name,value = field.split('=')
+            try:
+                value = float(value)
+            except:
+                try:
+                    value = float(int)
+                except:
+                    pass
+            #print name, value, type(value), ' --- ',field
+            self.__dict__[name] = value
 
 
     def __str__(self): return self.__unicode__()
@@ -212,7 +230,6 @@ class Svp(Datagram):
                 
 
         sys.exit('Early SVP')
-
     def __str__(self): return self.__unicode__()
     def __unicode__(self):
         return 'SVP: '.format(**self.__dict__)
