@@ -108,7 +108,6 @@ class Clock(Datagram):
     def __str__(self): return self.__unicode__()
     def __unicode__(self):
         return 'Clock: {timestamp} {timestamp_external} {pps}'.format(**self.__dict__)
-        #return 'Clock: {timestamp} '.format(**self.__dict__)
 
 class Position(Datagram):
     def __init__(self, data, offset, size):
@@ -185,9 +184,38 @@ class InstParam(Datagram):
         params_str = data[offset+20:offset+size-3].rstrip(chr(0))
         print ('params_str:', params_str)
 
+
     def __str__(self): return self.__unicode__()
     def __unicode__(self):
         return 'InstParam: '.format(**self.__dict__)
+
+
+class Svp(Datagram):
+    def __init__(self, data, offset, size):
+        Datagram.__init__(self, data, offset, size)
+
+        # FIX: not verified
+
+        date_raw,ms_raw = struct.unpack('II',data[offset+16:offset+24])
+        self.timestamp_svp = date_and_time_to_datetime(date_raw, ms_raw)
+        num_entries = struct.unpack('H',data[offset+24:offset+26])[0]
+        depth_res_cm = struct.unpack('H',data[offset+26:offset+28])[0]
+        
+        print (num_entries,depth_res_cm)
+
+        entries = []
+        for i in range(num_entries):
+            depth,ss_dms = struct.unpack('II',data[offset+28+i*4:offset+28+8+i*4])
+            print ('  svp_entry:',i,depth,ss_dms)
+        assert (0==ord(data[offset+28+num_entries*4]))
+        assert (ETX==ord(data[offset+28+num_entries*4+1]))
+                
+
+        sys.exit('Early SVP')
+
+    def __str__(self): return self.__unicode__()
+    def __unicode__(self):
+        return 'SVP: '.format(**self.__dict__)
 
 
 datagram_classes = {
@@ -195,9 +223,8 @@ datagram_classes = {
     0x49: InstParam,			# char: 'I'	dec:  73
     0x50: Position,			# char: 'P'	dec:  80
     0x52: RuntimeParam,			# char: 'R'	dec:  82
-
+    0x55: Svp,				# char: 'U'	dec:  85
 }
-
 
 class SimradFile(object):
     def __init__(self,filename):
