@@ -1,5 +1,8 @@
 #!/usr/bin/env python2.7
 from __future__ import print_function
+
+# License: BSD, Kurt Schwehr Aug/Sep 2010
+
 # Requires python 2.6 or 2.7
 # Read MB datagrams from a simrad multibeam.  Starting with 2010 Healy em122 data.
 
@@ -61,9 +64,7 @@ def date_and_time_to_datetime(date_raw,ms_raw):
     second = (ms_raw / 1000) % 60
     minute = (ms_raw / 60000) % 60
     hour = (ms_raw / 3600000) % 24
-    #print ('%d %04d-%02d-%02d T %02d:%02d:%02d.%04d' % (ms_raw, year, month, day,
-    #                                                 hour, minute, second,
-    #                                                 millisec))
+
     return datetime.datetime(year, month, day, hour, minute, second, microsec)
 
 
@@ -270,6 +271,7 @@ class SimradIterator(object):
             # Factory to build classes
             dg = datagram_classes[dg_id](self.data, self.offset+4, dg_length)
         else:
+            # Return a basically useless container...
             dg = Datagram(self.data, self.offset+4, dg_length) 
         self.offset += 4 + dg_length
         return dg
