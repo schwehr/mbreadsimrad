@@ -1,11 +1,6 @@
 // -*- C++ -*- Tell emacs this is C++
-// Kurt Schwehr - Aug 2010 - BSD License
-// MB Nuts and Bolts course at CCOM, UNH
+// Kurt Schwehr - Aug 2010 - Apache 2.0 License
 
-/* See also: 
-  http://geosoft.no/development/cppstyle.html
-  http://www.icce.rug.nl/documents/cplusplus/
- */
 
 #ifndef __SIMRAD_H__
 #define __SIMRAD_H__
@@ -98,14 +93,14 @@ bool emtime2tm_struct (const unsigned int date, const unsigned int millisec, str
 class SimradDg {
 public:
     //SimradDg(const unsigned char *data, const unsigned int size);  // Data does NOT include the size at the front
-    // Set size 
+    // Set size
     SimradDgEnum init(const unsigned char *data, const unsigned int size, bool network=false);
     virtual ~SimradDg();
     virtual SimradDgEnum getType()=0;
     virtual string getName()=0;
 
 //private:
-   
+
     unsigned short em_model, clock_counter;
     double timestamp; // Unix UTC time with millisec decimal places
     unsigned short ping_counter;
@@ -150,10 +145,10 @@ private:
     size_t cur_offset;
     size_t file_size;
     unsigned char *data;
-    
+
 };
 
-// Prereads a whole file allowing for seeking 
+// Prereads a whole file allowing for seeking
 class SimradFileCached : public SimradFile {
     // Find the next datagram of a type, but do NOT move the pointer
     SimradDg *next_no_update(const SimradDgEnum dg_type);

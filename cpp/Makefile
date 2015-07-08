@@ -1,18 +1,16 @@
-# -*- makefile-gmake -*- Tell emacs this is a GNU Makefile
-
 CFLAGS := -Wall
-CFLAGS += -Wimplicit 
-CFLAGS += -pedantic 
-CFLAGS += -W 
+CFLAGS += -Wimplicit
+CFLAGS += -pedantic
+CFLAGS += -W
 CFLAGS += -Wredundant-decls
 CFLAGS += -Werror
 CFLAGS += -Wstrict-prototypes
 
-DEBUG := -g3 -O0 
+DEBUG := -g3 -O0
 #-D_GLIBCXX_DEBUG
 
 CXXOPTIMIZE := -O3 -funroll-loops -fexpensive-optimizations -ffast-math -DNDEBUG
-CXXWARNINGS := -pedantic -Wall -W -Wimplicit -Wredundant-decls -Wmissing-prototypes 
+CXXWARNINGS := -pedantic -Wall -W -Wimplicit -Wredundant-decls -Wmissing-prototypes
 
 # Allow foo = "string"
 CXXWARNINGS += -Wno-write-strings
@@ -24,7 +22,7 @@ else
   CXXFLAGS := ${DEBUG} ${CXXWARNINGS}
 endif
 
-test-simrad: test-simrad.o simrad.o 
+test-simrad: test-simrad.o simrad.o
 	${CXX} ${CXXFLAGS} -o $@ $^
 
 libsimrad.a: simrad.o simrad.h

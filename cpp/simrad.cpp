@@ -1,29 +1,30 @@
-// Kurt Schwehr - Aug 2010 - BSD License
-// MB Nuts and Bolts course at CCOM, UNH
+// Kurt Schwehr - Aug 2010 - Apache 2.0 License
 
 #include "simrad.h"
 
-#include <iostream>
-#include <cstdio>
-#include <vector>
 #include <cassert>
+#include <cstdio>
 
-// For file size
-#include <sys/types.h> 
+#include <sys/types.h>
 #include <sys/stat.h>
 
-// mmap to read the data
-#include <fcntl.h> // open
+#include <fcntl.h>
 #include <errno.h>
 #include <sys/mman.h>
+#include <unistd.h>
+
+#include <iostream>
+#include <vector>
 
 using namespace std;
 
+double emtime2unixtime_double(const unsigned int date,
+                              const unsigned int millisec);
 
 // Convert a date_raw and millisec_raw to a time.h / struct tm
 // Using boost would be a lot more efficient
 bool emtime2tm_struct (const unsigned int date,
-                        const unsigned int millisec, 
+                        const unsigned int millisec,
                         struct tm &t) {
     const int tm_year = date / 10000;
     const int tm_mon = (date % 10000) / 100;
@@ -37,7 +38,7 @@ bool emtime2tm_struct (const unsigned int date,
     char buf[256];
     snprintf(buf, 256, "%4d-%02d-%02dT%02d:%02d:%02dZ", tm_year, tm_mon, tm_mday,
              tm_hour, tm_min, tm_sec);
-   
+
     if (0 == strptime(buf, "%Y-%m-%dT%H:%M:%SZ", &t)) {
         perror("Unable to parse ISO time");
         return false;
@@ -68,7 +69,8 @@ double emtime2unixtime_double(const unsigned int date, const unsigned int millis
 //////////////////////////////////////////////////////////////////////
 
 SimradFile::SimradFile(const string &filename) : cur_offset(0) {
-    FILE *infile = fopen(filename.c_str(), "rb"); // b needed for windows machines
+    // b needed for windows machines.
+    FILE *infile = fopen(filename.c_str(), "rb");
     if (!infile) {
         cerr << "ERROR: unable to open input file: " << filename << endl;
         perror("\tSpecific error");
@@ -86,7 +88,8 @@ SimradFile::SimradFile(const string &filename) : cur_offset(0) {
         exit(EXIT_FAILURE);
     }
 
-    data = (unsigned char *)mmap (0, file_size, PROT_READ,  MAP_FILE | MAP_PRIVATE, fd, 0);
+    data = (unsigned char *)mmap (
+        0, file_size, PROT_READ,  MAP_FILE | MAP_PRIVATE, fd, 0);
     if (MAP_FAILED == data) {
         perror("mmap failed for em raw file");
         exit(EXIT_FAILURE);
@@ -112,7 +115,7 @@ unsigned short dg_checksum(const unsigned char *dg_data, const size_t size) {
     assert(dg_data);
     assert(size < 128000); // Assumption of size
     unsigned short sum = 0;
-    for (size_t i=5; i<4+size-3; i++) 
+    for (size_t i=5; i<4+size-3; i++)
         sum += GET_U1(dg_data,i);
     return sum;
 }
@@ -135,13 +138,14 @@ SimradFile::next(const SimradDgEnum dg_type) {
 
     SimradDg *dg=0;
     switch (id) {
-    case SIMRAD_DG_CLOCK: 
-        dg = new SimradDgClock(dg_data+4, size); // Skip the size so that netwrk packets will work later
+    case SIMRAD_DG_CLOCK:
+        // Skip the size so that network packets will work later.
+        dg = new SimradDgClock(dg_data+4, size);
         break;
     default:
         dg = new SimradDgUnknown(dg_data+4, size);
     }
-    
+
 
 
     cur_offset += size + 4;
