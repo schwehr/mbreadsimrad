@@ -178,7 +178,7 @@ class InstParam(Datagram):
 
         # FIX: not verified
 
-        # This overwrites the normal header paramers
+        # This overwrites the normal header parameters
         self.survey_line_num = struct.unpack('H',data[offset+12:offset+14])[0]
         # system seria number here
         self.serial_sonar_head = struct.unpack('H',data[offset+18:offset+20])[0]
