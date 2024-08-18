@@ -9,9 +9,9 @@
      man ascii
      man fread
      man fseek
-     man 
-     man 
-     man 
+     man
+     man
+     man
 */
 
 #include <iostream>
@@ -20,7 +20,7 @@
 #include <cassert>
 
 // For file size
-#include <sys/types.h> 
+#include <sys/types.h>
 #include <sys/stat.h>
 
 using namespace std;

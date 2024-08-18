@@ -11,9 +11,9 @@
      man ascii
      man open
      man mmap
-     man 
-     man 
-     man 
+     man
+     man
+     man
 */
 
 #include <iostream>
@@ -22,7 +22,7 @@
 #include <cassert>
 
 // For file size
-#include <sys/types.h> 
+#include <sys/types.h>
 #include <sys/stat.h>
 
 // mmap to read the data
@@ -51,7 +51,7 @@ unsigned short compute_checksum(const unsigned char *dg_data, const size_t size)
     assert(dg_data);
     assert(size < 128000); // Assumption of size
     unsigned short sum = 0;
-    for (size_t i=5; i<4+size-3; i++) 
+    for (size_t i=5; i<4+size-3; i++)
         sum += GET_U1(dg_data,i);
     return sum;
 }
@@ -61,7 +61,7 @@ bool emtime2tm_struct (const unsigned int date, const unsigned int millisec, str
 // Convert a date_raw and millisec_raw to a time.h / struct tm
 // Using boost would be a lot more efficient
 bool emtime2tm_struct (const unsigned int date,
-                        const unsigned int millisec, 
+                        const unsigned int millisec,
                         struct tm &t) {
     const int tm_year = date / 10000;
     const int tm_mon = (date % 10000) / 100;
@@ -75,7 +75,7 @@ bool emtime2tm_struct (const unsigned int date,
     char buf[256];
     snprintf(buf, 256, "%4d-%02d-%02dT%02d:%02d:%02dZ", tm_year, tm_mon, tm_mday,
              tm_hour, tm_min, tm_sec);
-   
+
     if (0 == strptime(buf, "%Y-%m-%dT%H:%M:%SZ", &t)) {
         perror("Unable to parse ISO time");
         return false;
@@ -95,7 +95,7 @@ time_t emtime2unixtime(const unsigned int date,
     }
     return timegm(&t);
 }
-                     
+
 
 class SimradDgClock {
 public:

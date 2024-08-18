@@ -1,14 +1,14 @@
 # -*- makefile-gmake -*- Tell emacs this is a GNU Makefile
 
 CFLAGS := -Wall
-CFLAGS += -Wimplicit 
-CFLAGS += -pedantic 
-CFLAGS += -W 
+CFLAGS += -Wimplicit
+CFLAGS += -pedantic
+CFLAGS += -W
 CFLAGS += -Wredundant-decls
 CFLAGS += -Werror
 CFLAGS += -Wstrict-prototypes
 
-DEBUG := -g3 -O0 
+DEBUG := -g3 -O0
 #-D_GLIBCXX_DEBUG
 
 CXXOPTIMIZE := -O3 -funroll-loops -fexpensive-optimizations -ffast-math -DNDEBUG

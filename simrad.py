@@ -96,7 +96,7 @@ class Datagram(object):
             name = 'unknown_%d' % self.dg_id
         return 'Unhandled datagram {dg_id} {dg_id_hex}: {name} {model} {timestamp} {counter} {serial}'.format(
             name=name, dg_id_hex = hex(self.dg_id), **self.__dict__)
-    
+
 class Clock(Datagram):
     def __init__(self, data, offset, size):
         # Python struct can't handle non-aligned reads it seems
@@ -120,7 +120,7 @@ class Position(Datagram):
         self.cog = cog * 1e-2
         self.heading = heading * 1e-2
         self.input_str = data[offset+34:offset+34+byte_count]
-        
+
     def __str__(self): return self.__unicode__()
     def __unicode__(self):
         return 'Pos: {x} {y} {fix_qual} {sog_cms} {cog} {heading}'.format(**self.__dict__)
@@ -136,7 +136,7 @@ class RuntimeParam(Datagram):
         self.sonar_head_status = data[offset+19]
         self.mode = data[offset+20]
         self.filter_id = data[offset+21]
-        
+
         self.depth_min = struct.unpack('H',data[offset+22:offset+24])[0]
         self.depth_max = struct.unpack('H',data[offset+24:offset+26])[0]
 
@@ -167,7 +167,7 @@ class RuntimeParam(Datagram):
             print ('RuntimePara_ETX_FAILURE: need to fix datagram',etx,size,47)
             #sys.exit('bye')
         # FIX: if EM 1002, durotong SSD
-        
+
     def __str__(self): return self.__unicode__()
     def __unicode__(self):
         return 'RuntimeParam: {depth_min} {depth_max}'.format(**self.__dict__)
@@ -219,7 +219,7 @@ class Svp(Datagram):
         self.timestamp_svp = date_and_time_to_datetime(date_raw, ms_raw)
         num_entries = struct.unpack('H',data[offset+24:offset+26])[0]
         depth_res_cm = struct.unpack('H',data[offset+26:offset+28])[0]
-        
+
         print (num_entries,depth_res_cm)
 
         entries = []
@@ -228,7 +228,7 @@ class Svp(Datagram):
             print ('  svp_entry:',i,depth,ss_dms)
         assert (0==ord(data[offset+28+num_entries*4]))
         assert (ETX==ord(data[offset+28+num_entries*4+1]))
-                
+
 
         sys.exit('Early SVP')
     def __str__(self): return self.__unicode__()
@@ -272,7 +272,7 @@ class SimradIterator(object):
             dg = datagram_classes[dg_id](self.data, self.offset+4, dg_length)
         else:
             # Return a basically useless container...
-            dg = Datagram(self.data, self.offset+4, dg_length) 
+            dg = Datagram(self.data, self.offset+4, dg_length)
         self.offset += 4 + dg_length
         return dg
 
@@ -303,7 +303,7 @@ def shiptrack_kml(simrad,outfile):
 ''')
 
 
-    
+
 def main():
     simrad_file = SimradFile('0018_20050728_153458_Heron.all')
     #simrad_file = SimradFile('0034_20100604_005123_Healy.all')
