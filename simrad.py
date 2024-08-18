@@ -1,9 +1,7 @@
-#!/usr/bin/env python2.7
-from __future__ import print_function
+#!/usr/bin/env python3
+# License: Apache License 2.0
+# Author: Kurt Schwehr Aug/Sep 2010
 
-# License: BSD, Kurt Schwehr Aug/Sep 2010
-
-# Requires python 2.6 or 2.7
 # Read MB datagrams from a simrad multibeam.  Starting with 2010 Healy em122 data.
 
 import mmap   # load the file into memory directly so it looks like a big array
@@ -54,16 +52,16 @@ class SimradErrorBadChecksum(SimradError):
     pass
 
 def date_and_time_to_datetime(date_raw,ms_raw):
-    year = date_raw / 10000
-    month = (date_raw % 10000) / 100
+    year = date_raw // 10000
+    month = (date_raw % 10000) // 100
     day = date_raw % 100
 
     millisec = ms_raw % 1000
     microsec = millisec * 1000
 
-    second = (ms_raw / 1000) % 60
-    minute = (ms_raw / 60000) % 60
-    hour = (ms_raw / 3600000) % 24
+    second = (ms_raw // 1000) % 60
+    minute = (ms_raw // 60000) % 60
+    hour = (ms_raw // 3600000) % 24
 
     return datetime.datetime(year, month, day, hour, minute, second, microsec)
 
@@ -75,7 +73,7 @@ class Datagram(object):
         '''
         #assert (STX == ord(data[offset]))
         #assert (ETX == ord(data[offset+size-3]))
-        self.dg_id = ord(data[offset+1])
+        self.dg_id = data[offset+1]
         #checksum_reported = struct.unpack('H',data[offset+size-2:offset+size])[0]
         # Checksum is of the data between STX and ETX
         #checksum_computed = sum(map(ord,data[offset+1:offset+size-3])) % (256*256)
@@ -182,7 +180,7 @@ class InstParam(Datagram):
         self.survey_line_num = struct.unpack('H',data[offset+12:offset+14])[0]
         # system seria number here
         self.serial_sonar_head = struct.unpack('H',data[offset+18:offset+20])[0]
-        params_str = data[offset+20:offset+size-3].rstrip(chr(0))
+        params_str = str(data[offset+20:offset+size-3]).rstrip(chr(0))
         #print ('params_str:', params_str)
         #self.__dict__.update(parse_param_str)
         self.parse_param_str(params_str)
@@ -192,7 +190,8 @@ class InstParam(Datagram):
         fields = s.rstrip(',').split(',')
         #r = dict()
         for field in fields:
-            name,value = field.split('=')
+            print(f'field: "{field}"')
+            name, value = field.split('=')
             try:
                 value = float(value)
             except:
@@ -261,12 +260,12 @@ class SimradIterator(object):
         self.file_size = simrad.size
     def __iter__(self):
         return self
-    def next(self):
+    def __next__(self):
         if self.offset >= self.file_size:
             raise StopIteration
         dg_length = struct.unpack('I',self.data[self.offset:self.offset+4])[0]
         # Ignore STX
-        dg_id = ord(self.data[self.offset+5])
+        dg_id = self.data[self.offset+5]
         if dg_id in datagram_classes:
             # Factory to build classes
             dg = datagram_classes[dg_id](self.data, self.offset+4, dg_length)
@@ -305,7 +304,8 @@ def shiptrack_kml(simrad,outfile):
 
 
 def main():
-    simrad_file = SimradFile('0018_20050728_153458_Heron.all')
+    # http://data.ngdc.noaa.gov/platforms/ocean/ships/nathaniel_b._palmer/NBP1902/multibeam/data/version1/MB/em122/0001_20190226_013728_NBP1902.all.mb58.gz
+    simrad_file = SimradFile('0001_20190226_013728_NBP1902.all.mb58')
     #simrad_file = SimradFile('0034_20100604_005123_Healy.all')
     loop_datagrams(simrad_file)
     #shiptrack_kml(simrad_file,file('out.kml','w'))
